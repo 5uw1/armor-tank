@@ -14,10 +14,10 @@ def appVersion = (project.findProperty('appVersion') ?: '1.0.0').toString()
 def appVersionCode = (project.findProperty('appVersionCode') ?: '1').toString().toInteger()
 
 android {
-    namespace = "com.armortank.game"
+    namespace = "com.suw1labs.armortank"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.armortank.game"
+        applicationId "com.suw1labs.armortank"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode appVersionCode

@@ -4,6 +4,7 @@ Copy these into Google Play Console and App Store Connect. The limit is shown in
 Fill in `[DEVELOPER NAME]` and `[CONTACT EMAIL]` here and in `public/privacy.html` first.
 
 - **Privacy policy URL**: host `dist/privacy.html` (it ships with every web build) at any HTTPS address, e.g. `https://<user>.github.io/armor-tank/privacy.html`. Both stores need a public link.
+- **Package / Bundle ID**: `com.suw1labs.armortank` (Play and App Store) · SKU `armortank`
 - **Category**: Games → Action (Play) / Games → Action, secondary Strategy (App Store)
 - **Price**: Free · no ads · no in-app purchases
 - **Languages**: Thai (default for Thai devices), English

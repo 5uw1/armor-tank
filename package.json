@@ -41,7 +41,7 @@
     "email": "5uw1@users.noreply.github.com"
   },
   "build": {
-    "appId": "com.armortank.game",
+    "appId": "com.suw1labs.armortank",
     "productName": "Armor Tank",
     "directories": {
       "output": "release"

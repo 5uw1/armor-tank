@@ -1,4 +1,4 @@
-package com.armortank.game;
+package com.suw1labs.armortank;
 
 import android.os.Bundle;
 import android.view.WindowManager;

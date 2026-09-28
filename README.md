@@ -44,7 +44,34 @@ Store text (Thai/English), the Data safety and App Privacy answers, and the scre
 3. Increase `versionCode` (and `versionName`) in `android/app/build.gradle` for every upload.
 4. `npm run app:android:release` → `android/app/build/outputs/bundle/release/app-release.aab`, which you upload to Play Console (internal testing first).
 
-**App Store** (needs macOS + Xcode): `npm run app:ios`, open `ios/App/App.xcodeproj`, set the Team to your Apple Developer account, then Product → Archive → Distribute → App Store Connect → TestFlight. Without a Mac, use a cloud Mac (MacinCloud) or a CI service with macOS runners (Codemagic, GitHub Actions).
+**App Store (Xcode Cloud, same setup as ProTrack)**
+
+Bundle ID `com.suw1labs.armortank`. [`ios/App/ci_scripts/`](ios/App/ci_scripts) makes the project build on Xcode Cloud:
+
+- `ci_post_clone.sh` installs Node, then runs `npm ci`, `vite build` and `cap sync ios`. The web build, `capacitor.config.json` and the plugins that CapApp-SPM loads from `node_modules` are not in git, so they must be generated there.
+- `ci_pre_xcodebuild.sh` stamps `MARKETING_VERSION` from the git tag (`v1.2.3-rc1` → `1.2.3`; builds from main use the latest tag, or `1.0.0` before the first one). `CURRENT_PROJECT_VERSION` is set to Xcode Cloud's build number, which only goes up.
+
+One-time setup, on a Mac:
+1. `npm ci && npm run app:ios`, then open `ios/App/App.xcodeproj`. Under the App target → Signing & Capabilities, pick your team (automatic signing). This registers the bundle ID.
+2. Create the app in App Store Connect with this bundle ID (SKU `armortank`, category Games → Action).
+3. In Xcode choose Product → Xcode Cloud → Create Workflow:
+   - Start condition: tag changes matching `v*`.
+   - Action: Archive, iOS, App Store Connect distribution.
+   - Post-action: TestFlight (internal testing).
+   - Grant access to the GitHub repo.
+   - Commit the `ios/App/App.xcodeproj/xcshareddata/xcodecloud` folder that Xcode creates.
+4. After that, `git tag vX.Y.Z && git push origin vX.Y.Z` builds Android, desktop and web on GitHub Actions, and iOS on Xcode Cloud, which delivers it to TestFlight.
+
+Already set for App Review:
+- `ITSAppUsesNonExemptEncryption = NO`, so there's no export-compliance question on every upload.
+- `PrivacyInfo.xcprivacy`: no tracking and no data collected.
+- Landscape-only full screen (`UIRequiresFullScreen`).
+- arm64.
+- The app icon has no alpha channel.
+
+The app also runs on iPad, so App Store Connect needs 13" iPad screenshots as well as 6.9" iPhone ones.
+
+**Google Play testing requirement:** a new *personal* developer account must run a **closed test with at least 12 testers opted in for 14 days in a row** before it can apply for production. Internal testing (which the CI uploads to) doesn't count toward this, and neither do fewer than 12 opted-in testers.
 
 ## CI builds and releases (GitHub Actions)
 
@@ -67,7 +94,7 @@ Store text (Thai/English), the Data safety and App Privacy answers, and the scre
 
 The Android `versionCode` is the workflow run number, so it always increases.
 
-**Optional repository secrets** (Settings → Secrets and variables → Actions). Without them the builds still run.
+**Optional repository secrets** (Settings → Secrets and variables → Actions). Without them the builds still run. `scripts/set-play-secrets.sh <service-account.json> [armortank-upload.jks]` sets all the Android/Play ones in one go and checks the keystore password first (needs the `gh` CLI and `gh auth login`).
 
 | Secret | Purpose |
 |---|---|

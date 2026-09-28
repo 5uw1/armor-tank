@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.armortank.game',
+  appId: 'com.suw1labs.armortank',
   appName: 'Armor Tank',
   webDir: 'dist',
   backgroundColor: '#15171a',
