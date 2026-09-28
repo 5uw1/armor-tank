@@ -1,10 +1,17 @@
 apply plugin: 'com.android.application'
 
-// Release signing: create android/keystore.properties (never commit it) with
-// storeFile, storePassword, keyAlias, keyPassword — see README "Store release".
+// Release signing, in order of preference:
+//  1. CI: KEYSTORE_PATH, STORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD environment variables
+//  2. Local: android/keystore.properties (never commit it) with storeFile, storePassword, keyAlias, keyPassword
+//  3. Neither: the debug key, so the APK still installs (Google Play rejects it; see README "Store release")
 def keystorePropsFile = rootProject.file('keystore.properties')
 def keystoreProps = new Properties()
 if (keystorePropsFile.exists()) keystorePropsFile.withInputStream { keystoreProps.load(it) }
+def envKeystore = System.getenv('KEYSTORE_PATH') ?: ''
+
+// Version from the build (-PappVersion=1.2.3 -PappVersionCode=42); CI derives both from the tag / run number
+def appVersion = (project.findProperty('appVersion') ?: '1.0.0').toString()
+def appVersionCode = (project.findProperty('appVersionCode') ?: '1').toString().toInteger()
 
 android {
     namespace = "com.armortank.game"
@@ -13,8 +20,8 @@ android {
         applicationId "com.armortank.game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -24,7 +31,12 @@ android {
     }
     signingConfigs {
         release {
-            if (keystorePropsFile.exists()) {
+            if (envKeystore) {
+                storeFile file(envKeystore)
+                storePassword System.getenv('STORE_PASSWORD')
+                keyAlias System.getenv('KEY_ALIAS')
+                keyPassword System.getenv('KEY_PASSWORD')
+            } else if (keystorePropsFile.exists()) {
                 storeFile rootProject.file(keystoreProps['storeFile'])
                 storePassword keystoreProps['storePassword']
                 keyAlias keystoreProps['keyAlias']
@@ -34,7 +46,7 @@ android {
     }
     buildTypes {
         release {
-            if (keystorePropsFile.exists()) signingConfig signingConfigs.release
+            signingConfig = (envKeystore || keystorePropsFile.exists()) ? signingConfigs.release : signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

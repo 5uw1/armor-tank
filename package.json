@@ -1,18 +1,20 @@
 {
   "name": "armor-tank",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
-    "app:win": "vite build && electron-builder --win",
+    "app:win": "vite build && electron-builder --win -c.electronDist=node_modules/electron/dist",
     "app:win:dev": "vite build && electron .",
     "app:android": "vite build && cap sync android && cd android && gradlew assembleDebug",
     "app:android:release": "vite build && cap sync android && cd android && gradlew bundleRelease assembleRelease",
     "app:ios": "vite build && cap sync ios",
-    "icons": "node scripts/make-icons.mjs && capacitor-assets generate --android --ios --iconBackgroundColor \"#15171a\" --splashBackgroundColor \"#15171a\""
+    "icons": "node scripts/make-icons.mjs && capacitor-assets generate --android --ios --iconBackgroundColor \"#15171a\" --splashBackgroundColor \"#15171a\"",
+    "app:mac": "vite build && electron-builder --mac",
+    "app:linux": "vite build && electron-builder --linux"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
@@ -34,7 +36,10 @@
   },
   "main": "electron/main.cjs",
   "description": "Armor Tank — 2.5D tank battle game",
-  "author": "Armor Tank",
+  "author": {
+    "name": "5uw1",
+    "email": "5uw1@users.noreply.github.com"
+  },
   "build": {
     "appId": "com.armortank.game",
     "productName": "Armor Tank",
@@ -74,7 +79,41 @@
     "portable": {
       "artifactName": "ArmorTank-portable-${version}.exe"
     },
-    "electronDist": "node_modules/electron/dist",
-    "npmRebuild": false
-  }
+    "npmRebuild": false,
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.action-games",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "artifactName": "ArmorTank-${version}-mac.${ext}"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Game",
+      "maintainer": "5uw1 <5uw1@users.noreply.github.com>",
+      "target": [
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  },
+  "homepage": "https://github.com/5uw1/armor-tank"
 }

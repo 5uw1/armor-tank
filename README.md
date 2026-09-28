@@ -46,6 +46,39 @@ Store text (Thai/English), the Data safety and App Privacy answers, and the scre
 
 **App Store** (needs macOS + Xcode): `npm run app:ios`, open `ios/App/App.xcodeproj`, set the Team to your Apple Developer account, then Product → Archive → Distribute → App Store Connect → TestFlight. Without a Mac, use a cloud Mac (MacinCloud) or a CI service with macOS runners (Codemagic, GitHub Actions).
 
+## CI builds and releases (GitHub Actions)
+
+[`.github/workflows/build.yml`](.github/workflows/build.yml) builds every platform:
+
+- **Every push to `main`** (or a manual run): type-checks, then builds the web, Android, Windows, macOS and Linux versions as workflow artifacts. The version is `1.0.0-dev.<run number>`.
+- **Pushing a `v*` tag** publishes one GitHub Release with auto-generated notes. A tag with a hyphen, such as `v1.1.0-rc1`, is marked as a pre-release.
+  ```
+  git tag v1.0.0
+  git push origin v1.0.0
+  ```
+
+| Release asset | Platform |
+|---|---|
+| `ArmorTank-<v>-android.apk` / `.aab` | Android: sideload the APK, upload the AAB to Play |
+| `ArmorTank-<v>-windows-setup.exe` / `-windows-portable.exe` | Windows installer / no-install EXE |
+| `ArmorTank-<v>-macos.dmg` | macOS (universal: Intel + Apple Silicon) |
+| `ArmorTank-<v>-linux.deb` / `.AppImage` | Linux |
+| `ArmorTank-<v>-web.zip` | PWA: unzip onto any HTTPS host |
+
+The Android `versionCode` is the workflow run number, so it always increases.
+
+**Optional repository secrets** (Settings → Secrets and variables → Actions). Without them the builds still run.
+
+| Secret | Purpose |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | Upload keystore, base64 (`base64 -w0 armortank-upload.jks`, or on Windows `[Convert]::ToBase64String([IO.File]::ReadAllBytes("armortank-upload.jks"))`). Without it the APK/AAB are signed with the debug key: they install fine, but Google Play rejects them. |
+| `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Keystore password, key alias (`upload`) and key password |
+| `PLAY_SERVICE_ACCOUNT_JSON` | Google Play service account JSON. Tag builds upload the AAB to the **internal testing** track. The very first upload of a new app must be done by hand in Play Console. |
+| `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD` | "Developer ID Application" certificate (base64 .p12) and its password, used to sign the DMG |
+| `APPLE_ID`, `APPLE_APP_PASSWORD`, `APPLE_TEAM_ID` | Apple ID, app-specific password and Team ID, used to notarize the signed DMG (tags only) |
+
+Without the Apple secrets the DMG is unsigned. On macOS, open it with right-click → Open the first time.
+
 ## Story
 
 A 25-level campaign across 5 chapters:

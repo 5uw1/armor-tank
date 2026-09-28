@@ -1,0 +1,288 @@
+name: Build
+
+# Push to main / manual run: type-check and build every platform, upload dev-versioned artifacts.
+# Tag push (v1.2.3, v1.2.3-rc1, ...): stamp the exact version, sign when secrets exist,
+# publish everything on one GitHub Release, and (optionally) upload the AAB to Google Play.
+on:
+  push:
+    tags: ["v*"]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: "24"
+  JAVA_VERSION: "21"
+
+jobs:
+  # ---------------------------------------------------------------- version
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.v.outputs.app_version }}
+      version_code: ${{ steps.v.outputs.version_code }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - id: v
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"                     # v1.2.3-rc1 -> 1.2.3-rc1
+          else
+            VERSION="1.0.0-dev.${GITHUB_RUN_NUMBER}"           # every main build uniquely numbered
+          fi
+          echo "app_version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
+
+  # ---------------------------------------------------------------- web (type-check + PWA build)
+  web:
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci
+      - name: Type-check + build
+        run: npm run build
+      - name: Zip the web build
+        run: |
+          mkdir -p out
+          (cd dist && zip -qr "../out/ArmorTank-${{ needs.version.outputs.app_version }}-web.zip" .)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArmorTank-web
+          path: out/*
+
+  # ---------------------------------------------------------------- android
+  android:
+    needs: [version, web]
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: "${{ env.JAVA_VERSION }}" }
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - name: Build web assets + sync into the Android project
+        run: |
+          npx vite build
+          npx cap sync android
+
+      # Upload keystore as base64 in ANDROID_KEYSTORE_BASE64 (+ ANDROID_KEYSTORE_PASSWORD,
+      # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD). Without it the release build is signed with the
+      # debug key: it installs from the Release page, but Google Play rejects it.
+      - name: Check for signing secrets
+        env:
+          HAS: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "HAS_ANDROID_KEYSTORE=$HAS" >> "$GITHUB_ENV"
+          if [[ "$HAS" != "true" ]]; then
+            echo "::warning title=Debug-signed Android build::ANDROID_KEYSTORE_BASE64 is not set, so the APK/AAB are signed with the debug key (fine for sideloading, not for Google Play)."
+          fi
+      - name: Import keystore
+        if: env.HAS_ANDROID_KEYSTORE == 'true'
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+
+      - name: Build release APK + AAB
+        working-directory: android
+        env:
+          KEYSTORE_PATH: ${{ env.HAS_ANDROID_KEYSTORE == 'true' && format('{0}/upload.jks', runner.temp) || '' }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease bundleRelease \
+            -PappVersion=${{ needs.version.outputs.app_version }} \
+            -PappVersionCode=${{ needs.version.outputs.version_code }} \
+            --no-daemon --stacktrace
+      - name: Rename outputs
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/*.apk out/ArmorTank-${{ needs.version.outputs.app_version }}-android.apk
+          cp android/app/build/outputs/bundle/release/*.aab out/ArmorTank-${{ needs.version.outputs.app_version }}-android.aab
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArmorTank-android
+          path: out/*
+      - name: Clean up keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"
+
+  # ---------------------------------------------------------------- windows
+  windows:
+    needs: [version, web]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci
+      - name: Build installer + portable EXE
+        shell: bash
+        run: |
+          npx vite build
+          npx electron-builder --win --publish never -c.extraMetadata.version=${{ needs.version.outputs.app_version }}
+      - name: Rename outputs
+        shell: bash
+        run: |
+          mkdir -p out
+          cp release/*Setup*.exe out/ArmorTank-${{ needs.version.outputs.app_version }}-windows-setup.exe
+          cp release/ArmorTank-portable-*.exe out/ArmorTank-${{ needs.version.outputs.app_version }}-windows-portable.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArmorTank-windows
+          path: out/*
+
+  # ---------------------------------------------------------------- macos
+  macos:
+    needs: [version, web]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci
+
+      # Developer ID signing + notarization, only on tags and only once the secrets exist:
+      # MACOS_CERT_P12 (base64 .p12 with the "Developer ID Application" cert), MACOS_CERT_PASSWORD,
+      # APPLE_ID, APPLE_APP_PASSWORD (app-specific password), APPLE_TEAM_ID.
+      - name: Check for Developer ID secret
+        env:
+          HAS: ${{ secrets.MACOS_CERT_P12 != '' }}
+        run: echo "HAS_DEVELOPER_ID=$HAS" >> "$GITHUB_ENV"
+
+      - name: Build DMG (signed + notarized when configured)
+        env:
+          SIGN: ${{ startsWith(github.ref, 'refs/tags/') && env.HAS_DEVELOPER_ID == 'true' }}
+          CSC_LINK: ${{ secrets.MACOS_CERT_P12 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          npx vite build
+          EXTRA=""
+          if [[ "$SIGN" == "true" ]]; then
+            EXTRA="-c.mac.notarize=true"
+          else
+            # Unsigned build: stop electron-builder from looking for a certificate
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            unset CSC_LINK CSC_KEY_PASSWORD
+          fi
+          npx electron-builder --mac --publish never -c.extraMetadata.version=${{ needs.version.outputs.app_version }} $EXTRA
+      - name: Rename outputs
+        run: |
+          mkdir -p out
+          cp release/*.dmg out/ArmorTank-${{ needs.version.outputs.app_version }}-macos.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArmorTank-macos
+          path: out/*
+
+  # ---------------------------------------------------------------- linux
+  linux:
+    needs: [version, web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci
+      - name: Build DEB + AppImage
+        run: |
+          npx vite build
+          npx electron-builder --linux --publish never -c.extraMetadata.version=${{ needs.version.outputs.app_version }}
+      - name: Rename outputs
+        run: |
+          mkdir -p out
+          cp release/*.deb out/ArmorTank-${{ needs.version.outputs.app_version }}-linux.deb
+          cp release/*.AppImage out/ArmorTank-${{ needs.version.outputs.app_version }}-linux.AppImage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArmorTank-linux
+          path: out/*
+
+  # ---------------------------------------------------------------- release (tags only)
+  release:
+    needs: [version, web, android, windows, macos, linux]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ArmorTank-*
+          path: dist
+          merge-multiple: true
+      # Create the release first (idempotent: re-running the job keeps the existing one), then upload
+      # every asset separately with retries – large uploads occasionally get an HTTP 500 from GitHub.
+      - name: Create GitHub Release with auto-generated notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FLAG=""
+          if [[ "${{ needs.version.outputs.prerelease }}" == "true" ]]; then FLAG="--prerelease"; fi
+          if ! gh release view "$GITHUB_REF_NAME" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            # shellcheck disable=SC2086
+            gh release create "$GITHUB_REF_NAME" \
+              --repo "${{ github.repository }}" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes \
+              $FLAG
+          fi
+          for f in dist/*; do
+            for attempt in 1 2 3 4 5; do
+              if gh release upload "$GITHUB_REF_NAME" "$f" --repo "${{ github.repository }}" --clobber; then break; fi
+              if [[ "$attempt" == "5" ]]; then echo "::error title=Asset upload failed::$f"; exit 1; fi
+              echo "upload of $f failed (attempt $attempt), retrying in $((attempt * 15))s"
+              sleep $((attempt * 15))
+            done
+          done
+
+  # ---------------------------------------------------------------- google play (tags only, when configured)
+  play-store:
+    needs: [version, android]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for Play service account
+        env:
+          HAS: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        run: |
+          echo "HAS_PLAY=$HAS" >> "$GITHUB_ENV"
+          if [[ "$HAS" != "true" ]]; then
+            echo "::warning title=Play upload skipped::Repository secret PLAY_SERVICE_ACCOUNT_JSON is not set, so the AAB was not uploaded to Google Play."
+          fi
+      - name: Check the AAB was signed with the upload key
+        if: env.HAS_PLAY == 'true'
+        env:
+          HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          if [[ "$HAS_KEYSTORE" != "true" ]]; then
+            echo "::error title=Debug-signed AAB::ANDROID_KEYSTORE_BASE64 is not set; Google Play rejects bundles signed with the debug key. Add the keystore secrets (see README) and re-run."
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        if: env.HAS_PLAY == 'true'
+        with:
+          name: ArmorTank-android
+          path: android
+      - name: Upload AAB to Google Play (internal testing track)
+        if: env.HAS_PLAY == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.armortank.game
+          releaseFiles: android/*.aab
+          track: internal
+          status: completed
