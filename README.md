@@ -29,7 +29,7 @@ Notes:
 
 ## Store release
 
-Store text (Thai/English), the Data safety and App Privacy answers, and the screenshot checklist are in [docs/STORE_LISTING.md](docs/STORE_LISTING.md). The privacy policy is `public/privacy.html` (copied to `dist/privacy.html`), which must be hosted at a public HTTPS URL.
+Store text (Thai/English), the Data safety and App Privacy answers, and the screenshot checklist are in [docs/STORE_LISTING.md](docs/STORE_LISTING.md). The privacy policy (`public/privacy.html`) and the web version of the game are deployed to GitHub Pages on every push to main by [`.github/workflows/pages.yml`](.github/workflows/pages.yml): **https://5uw1.github.io/armor-tank/privacy.html**. One-time setup: Settings → Pages → Source: GitHub Actions.
 
 **Google Play**
 1. Create the upload key once and keep it and its password safe; losing it means you can't ship updates:
