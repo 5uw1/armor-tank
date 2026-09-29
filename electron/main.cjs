@@ -1,4 +1,4 @@
-// Windows desktop shell: loads the built game (dist/) in a frameless-feeling window.
+// Desktop shell (Windows / macOS / Linux): loads the built game (dist/) in a frameless-feeling window.
 const { app, BrowserWindow, Menu } = require('electron');
 const path = require('node:path');
 
@@ -15,7 +15,17 @@ function createWindow() {
     show: false,
     webPreferences: { contextIsolation: true, backgroundThrottling: true },
   });
-  Menu.setApplicationMenu(null);
+  // macOS takes Cmd+Q / Cmd+H / Cmd+M / fullscreen from the app menu, so keep a minimal one there
+  Menu.setApplicationMenu(
+    process.platform === 'darwin'
+      ? Menu.buildFromTemplate([
+          { role: 'appMenu' },
+          { role: 'editMenu' },
+          { label: 'View', submenu: [{ role: 'togglefullscreen' }] },
+          { role: 'windowMenu' },
+        ])
+      : null,
+  );
   win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   win.once('ready-to-show', () => {
     win.maximize();
