@@ -14,7 +14,8 @@
     "app:ios": "vite build && cap sync ios",
     "icons": "node scripts/make-icons.mjs && capacitor-assets generate --android --ios --iconBackgroundColor \"#15171a\" --splashBackgroundColor \"#15171a\"",
     "app:mac": "vite build && electron-builder --mac",
-    "app:linux": "vite build && electron-builder --linux"
+    "app:linux": "vite build && electron-builder --linux",
+    "store:capture": "node scripts/store-capture.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
