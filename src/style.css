@@ -203,8 +203,17 @@ button.on{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
   .main-menu h1{font-size:30px}
   .tagline{margin:4px 0 10px}
   .wave{font-size:15px}
-  .mission{font-size:12px;padding:3px 7px}
+  /* Small landscape phones: keep the corner HUD compact so it doesn't cover the battlefield */
+  .hud-tl{gap:5px}
+  .hp{width:min(200px,26vw);height:16px}
+  .hp-text{font-size:11px}
+  .minimap{width:80px;height:80px}
+  .missions{width:min(210px,26vw);gap:3px}
+  .mission{font-size:11px;padding:2px 6px;background:rgba(10,12,14,.4)}
+  .mission span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .touch-hint{font-size:11px}
 }
 @media (pointer:coarse){
-  .hud-ammo{bottom:auto;top:max(56px,calc(env(safe-area-inset-top) + 46px))}
+  .hud-ammo{bottom:auto;top:max(56px,calc(env(safe-area-inset-top) + 46px));width:fit-content;max-width:60vw}
+  .reload{flex-basis:100%}
 }
