@@ -9,3 +9,5 @@ android/keystore.properties
 *.keystore
 *.log
 .DS_Store
+.idea/
+android/.idea/
