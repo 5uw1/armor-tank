@@ -50,7 +50,7 @@ Store text (Thai/English), the Data safety and App Privacy answers, and the scre
 Bundle ID `com.suw1labs.armortank`. [`ios/App/ci_scripts/`](ios/App/ci_scripts) makes the project build on Xcode Cloud:
 
 - `ci_post_clone.sh` installs Node, then runs `npm ci`, `vite build` and `cap sync ios`. The web build, `capacitor.config.json` and the plugins that CapApp-SPM loads from `node_modules` are not in git, so they must be generated there.
-- `ci_pre_xcodebuild.sh` stamps `MARKETING_VERSION` from the git tag (`v1.2.3-rc1` → `1.2.3`; builds from main use the latest tag, or `1.0.0` before the first one). `CURRENT_PROJECT_VERSION` is set to Xcode Cloud's build number, which only goes up.
+- `ci_pre_xcodebuild.sh` stamps `MARKETING_VERSION` from the git tag (`v1.2.3-rc1` → `1.2.3`). Builds from main take the patch after the highest tag (`v1.2.3` → `1.2.4`), because an approved version is closed to new builds; the clone is shallow, so the script reads the tag list rather than `git describe`, and fails if there is no tag at all. `CURRENT_PROJECT_VERSION` is set to Xcode Cloud's build number, which only goes up.
 
 One-time setup, on a Mac:
 1. `npm ci && npm run app:ios`, then open `ios/App/App.xcodeproj`. Under the App target → Signing & Capabilities, pick your team (automatic signing). This registers the bundle ID.

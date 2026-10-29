@@ -5,8 +5,9 @@
 #
 # * Tag build (v1.2.3, v1.2.3-rc1): the tag without the "v" and without a pre-release suffix,
 #   since Apple allows only up to three dot-separated integers.
-# * Branch build: the latest release tag, so a build from main between releases is uploaded as a
-#   newer build of the version already released – never as an older one. 1.0.0 before the first tag.
+# * Branch build: the patch after the latest release tag (v1.2.3 → 1.2.4). Not the tag's own
+#   version: once 1.2.3 is approved, App Store Connect closes that version to new builds, so a
+#   build from main between releases has to go up as the next one.
 # * Build number: Xcode Cloud's own counter, which only ever goes up.
 set -e
 
@@ -16,13 +17,25 @@ cd "$REPO"
 
 if [ -n "$CI_TAG" ]; then
   TAG="$CI_TAG"
+  VERSION="$(echo "$TAG" | sed -E 's/^v//; s/-.*$//')"
 else
-  # The clone may not carry tags; fetch them so the branch build can find the last release.
-  git fetch --tags --force --quiet || true
-  TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo v1.0.0)"
+  # Xcode Cloud clones shallowly, so the release tags are usually not ancestors of HEAD in the
+  # local history and `git describe` finds nothing. Take the highest vX.Y.Z tag instead: from the
+  # local tags after a fetch, or straight from the remote if the fetch brought none.
+  git fetch --tags --force --quiet 2>/dev/null || true
+  TAG="$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)"
+  if [ -z "$TAG" ]; then
+    TAG="$(git ls-remote --tags --refs --sort=-v:refname origin 2>/dev/null \
+      | sed 's|.*refs/tags/||' | grep -E '^v[0-9]' | head -n 1 || true)"
+  fi
+  BASE="$(echo "$TAG" | sed -E 's/^v//; s/-.*$//')"
+  if echo "$BASE" | grep -Eq '^[0-9]+(\.[0-9]+){0,2}$'; then
+    VERSION="$(echo "$BASE" | awk -F. '{ printf "%d.%d.%d", $1, $2, $3 + 1 }')"
+  else
+    VERSION=""
+  fi
 fi
 
-VERSION="$(echo "$TAG" | sed -E 's/^v//; s/-.*$//')"
 if ! echo "$VERSION" | grep -Eq '^[0-9]+(\.[0-9]+){0,2}$'; then
   echo "error: no usable version from tag '$TAG' – tag releases as vX.Y.Z" >&2
   exit 1
