@@ -41,8 +41,9 @@ Store text (Thai/English), the Data safety and App Privacy answers, and the scre
    keyAlias=upload
    keyPassword=...
    ```
-3. Increase `versionCode` (and `versionName`) in `android/app/build.gradle` for every upload.
-4. `npm run app:android:release` → `android/app/build/outputs/bundle/release/app-release.aab`, which you upload to Play Console (internal testing first).
+3. Don't edit the version in `android/app/build.gradle`: it is read from `-PappVersion` / `-PappVersionCode` (default `1.0.0` / `1`). CI sets both from the tag and the run number. For a release built on your own machine, pass them yourself, with a `versionCode` higher than any build already uploaded to Play (CI run numbers included):
+   `npm run app:android:release -- -PappVersion=1.2.3 -PappVersionCode=<n>`
+4. That gives `android/app/build/outputs/bundle/release/app-release.aab`, which you upload to Play Console (internal testing first).
 
 **App Store (Xcode Cloud, same setup as ProTrack)**
 
