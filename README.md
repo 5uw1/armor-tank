@@ -29,11 +29,11 @@ Notes:
 
 ## Store release
 
-Store text (Thai/English), the Data safety and App Privacy answers, and the screenshot checklist are in [docs/STORE_LISTING.md](docs/STORE_LISTING.md). The privacy policy (`public/privacy.html`) and the web version of the game are deployed to GitHub Pages on every push to main by [`.github/workflows/pages.yml`](.github/workflows/pages.yml): **https://5uw1.github.io/armor-tank/privacy.html**. One-time setup: Settings → Pages → Source: GitHub Actions.
+Store text (Thai/English), the Data safety and App Privacy answers, and the screenshot checklist are in [docs/STORE_LISTING.md](docs/STORE_LISTING.md). Go through [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) before every tag, and paste [store/APP_REVIEW.md](store/APP_REVIEW.md) into App Store Connect → App Review Information when submitting to Apple. The privacy policy (`public/privacy.html`) and the web version of the game are deployed to GitHub Pages on every push to main by [`.github/workflows/pages.yml`](.github/workflows/pages.yml): **https://5uw1.github.io/armor-tank/privacy.html**. One-time setup: Settings → Pages → Source: GitHub Actions.
 
 **Google Play**
 1. Create the upload key once and keep it and its password safe; losing it means you can't ship updates:
-   `"C:\Program Files\Android\Android Studio\jbrin\keytool" -genkeypair -v -keystore D:\keysrmortank-upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000`
+   `"C:\Program Files\Android\Android Studio\jbr\bin\keytool" -genkeypair -v -keystore D:\keys\armortank-upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000`
 2. Create `android/keystore.properties` (ignored by git):
    ```
    storeFile=D:/keys/armortank-upload.jks

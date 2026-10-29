@@ -2,6 +2,8 @@
 
 Screenshots and graphics for Google Play Console and App Store Connect. They are captured from
 the real game, and the store text is in [`../docs/STORE_LISTING.md`](../docs/STORE_LISTING.md).
+The App Review notes for Apple (Guideline 2.1) and the screen-recording shot list are in
+[`APP_REVIEW.md`](APP_REVIEW.md).
 
 ## Contents
 

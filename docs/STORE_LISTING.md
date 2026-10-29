@@ -181,7 +181,8 @@ Armor Tank: สมรภูมิเมือง
 ### App Store — App Privacy
 - Data collection: **Data Not Collected**
 - Age rating questionnaire: violence is **realistic military combat (vehicles and soldiers), infrequent/mild in terms of human injury, no blood or gore**. No other content categories apply. Apple assigns the rating from your answers; expect a teen rating (12+/13+).
-- Export compliance (encryption): **No**, the app uses no encryption beyond what the OS provides. You can add `ITSAppUsesNonExemptEncryption = NO` to Info.plist to skip this question on every upload.
+- Export compliance (encryption): **No**, the app uses no encryption beyond what the OS provides. `ITSAppUsesNonExemptEncryption = NO` is already set in `ios/App/App/Info.plist`, so App Store Connect doesn't ask this on every upload.
+- App Review notes (Guideline 2.1) and the screen-recording shot list: [`store/APP_REVIEW.md`](../store/APP_REVIEW.md).
 
 ---
 
