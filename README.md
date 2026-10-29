@@ -68,6 +68,7 @@ Already set for App Review:
 - Landscape-only full screen (`UIRequiresFullScreen`).
 - arm64.
 - The app icon has no alpha channel.
+- `CFBundleLocalizations` = `en`, `th`. The game's text lives in JavaScript, so without this key iOS and the App Store's Languages field would list English only.
 
 The app also runs on iPad, so App Store Connect needs 13" iPad screenshots as well as 6.9" iPhone ones.
 
